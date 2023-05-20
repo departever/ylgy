@@ -3,12 +3,14 @@ using System.Collections.Generic;
 using System.ComponentModel;
 using System.Data;
 using System.Drawing;
+using System.Drawing.Imaging;
 using System.IO;
 using System.Linq;
 using System.Reflection;
 using System.Text;
 using System.Threading.Tasks;
 using System.Windows.Forms;
+using System.Windows.Forms.VisualStyles;
 using System.Xml.Linq;
 using static System.Windows.Forms.VisualStyles.VisualStyleElement.ProgressBar;
 
@@ -35,91 +37,101 @@ namespace WindowsFormsApp1
 
             RemoveButtons();
         }
-
-
-        private void AddButtonToPanel(Button Button)
+        class CtrEnabled
         {
-            int sameImageCount = 0; // 相同图片的数量
-            List<Button> sameImageButtons = new List<Button>(); // 存储相同图片的 Button
-            int count = panel.Controls.Count;
-            MemoryStream ms = new MemoryStream();
-            Button.Image.Save(ms, System.Drawing.Imaging.ImageFormat.Png);
-            String secondBitmap = Convert.ToBase64String(ms.ToArray());
-            // 遍历 panel 中的 Button
-            for (int i = count - 1; i <= count && i >= 0; i--)
-            {
-                Button existButton = panel.Controls[i] as Button;
+            [System.Runtime.InteropServices.DllImport("user32.dll ")]
+            static extern int SetWindowLong(IntPtr hWnd, int nIndex, int wndproc);
+            [System.Runtime.InteropServices.DllImport("user32.dll ")]
+            static extern int GetWindowLong(IntPtr hWnd, int nIndex);
 
-                if (existButton != null)
-                {
-                    //判断两张图片是否一致的两种方法
-                    ms.Position = 0;
-                    existButton.Image.Save(ms, System.Drawing.Imaging.ImageFormat.Png);
-                    String firstBitmap = Convert.ToBase64String(ms.ToArray());
-                    if (secondBitmap.Equals(firstBitmap))
-                    {
-                        sameImageCount++;
-                        if (sameImageButtons.Count == 0)
-                        {
-                            sameImageButtons.Add(Button);
-                        }
-                        int index = panel.Controls.IndexOf(existButton);
-                        panel.Controls.Add(Button);
-                        sameImageButtons.Add(existButton);
-                        Button.Location = new Point(existButton.Location.X + 50, 0);
-                        panel.Controls.SetChildIndex(Button, index + 1);
-                    }
-                }
-            }
-            if (sameImageCount == 2)
+            const int GWL_STYLE = -16;
+            const int WS_DISABLED = 0x8000000;
+
+            public static void SetControlEnabled(Control c, bool enabled)
             {
-                foreach (Button button in sameImageButtons)
+                if (enabled)
                 {
-                    panel.Controls.Remove(button);
+                    SetWindowLong(c.Handle, GWL_STYLE, (~WS_DISABLED) & GetWindowLong(c.Handle, GWL_STYLE));
                 }
-                sameImageButtons.Clear();
-                // 对 panel 中的 Button 进行重新排序
-                for (int j = 0; j < panel.Controls.Count; j++)
+                else
                 {
-                    Button button = panel.Controls[j] as Button;
-                    if (button != null)
-                    {
-                        button.Location = new Point((j % 7) * 50, 0);
-                    }
+                    SetWindowLong(c.Handle, GWL_STYLE, WS_DISABLED + GetWindowLong(c.Handle, GWL_STYLE));
                 }
-                return;
-            }
-            if (!panel.Controls.Contains(Button))
-            {
-                panel.Controls.Add(Button);
-                Button.Location = new Point((count % 7) * 50, 0);
             }
 
-            //对 panel 中的 Button 进行重新排序
-            for (int i = 0; i < panel.Controls.Count; i++)
+        }
+
+        private byte[] ImageToBytes(Image image)
+        {
+            using (MemoryStream ms = new MemoryStream())
             {
-                Button button = panel.Controls[i] as Button;
+                image.Save(ms, ImageFormat.Png);
+                return ms.ToArray();
+            }
+        }
+
+        private void ReorderButtons()
+        {
+            int buttonCount = panel.Controls.OfType<Button>().Count();
+            for (int i = 0; i < buttonCount; i++)
+            {
+                Button button = panel.Controls.OfType<Button>().ElementAt(i);
                 if (button != null)
                 {
                     button.Location = new Point((i % 7) * 50, 0);
                 }
             }
-            if (panel.Controls.Count > 7)
+        }
+
+        private void AddButtonToPanel(Button button)
+        {
+            // 获取图片的Base64编码
+            string imageBase64 = Convert.ToBase64String(ImageToBytes(button.Image));
+            // 存储相同图片的Button
+            List<Button> sameImageButtons = new List<Button>();
+            // 遍历Panel中的Button
+            foreach (Button existButton in panel.Controls.OfType<Button>())
+            {
+                string existImageBase64 = Convert.ToBase64String(ImageToBytes(existButton.Image));
+                // 判断新Button和已存在的Button是否有相同的图片
+                if (imageBase64 == existImageBase64)
+                {
+                    sameImageButtons.Add(existButton);
+                }
+            }
+            // 如果有3个相同图片的Button，则将它们都移除，并重新排列剩余Button
+            if (sameImageButtons.Count == 2)
+            {
+                sameImageButtons.Add(button);
+                foreach (Button sameImageButton in sameImageButtons)
+                {
+                    panel.Controls.Remove(sameImageButton);
+                }
+                ReorderButtons();
+                return;
+            }
+            // 将新Button添加到Panel中，并重新排列所有Button
+            CtrEnabled.SetControlEnabled(button, false);
+            panel.Controls.Add(button);
+            ReorderButtons();
+            // 判断是否达到游戏结束的条件
+            if (panel.Controls.OfType<Button>().Count() == 7)
             {
                 MessageBox.Show("游戏结束！");
-                return;
             }
         }
         private void RemoveButtons()
         {
 
         }
+
+
         public Bitmap GetRandomButtonBackground()
         {
             List<Image> images = new List<Image>();
-            for (int i = 0; i < 10; i++)
+            for (int i = 0; i < 16; i++)
             {
-                string imageFileName = @"C:\Users\asus\Desktop\ylgy\图片素材\" + i + ".png";//修改这一行即可
+                string imageFileName = @"..\..\..\图片素材\" + i + ".png";
                 Image _image = Image.FromFile(imageFileName);
                 images.Add(_image);
             }
@@ -157,15 +169,16 @@ namespace WindowsFormsApp1
             }
         }
 
+        //加载游戏页面
         private void Form1_Load(object sender, EventArgs e)
         {
             List<diepai1> list1 = new List<diepai1>();
 
-            int[] array1 = new int[60];
-            array1 = Enumerable.Range(0, 60)
+            int[] array1 = new int[360];
+            array1 = Enumerable.Range(0, 360)
                         .OrderBy(n => (new Random(n).Next()))
                         .ToArray<int>();
-            button1.Text = array1.ToString();
+
             for (int i = 0; i < array1.Length / 3; i++)
             {
                 Bitmap buttonBackground = GetRandomButtonBackground();
@@ -176,31 +189,55 @@ namespace WindowsFormsApp1
                 }
             }
             var pailist1 = list1.OrderBy(x => x.index).ToArray();
-
-            for (int i = 0; i < 5; i++)
+            int layers = random.Next(1, 10);//随机生成图片层数
+            for (int i = 0; i < layers; i++)
             {
-                int offsetX = 25 * random.Next(-1, 1);
-                int offsetY = 25 * random.Next(-1, 1);
-                for (int x = 0; x < 5; x++)
+                int offsetX = 25 * random.Next(-1, 2);
+                int offsetY = 25 * random.Next(-1, 2);
+                int len = random.Next(0, 13) * 3;//限制不显示的图片为3的倍数，防止不能通关
+                int l = 0;//计数没有显示的图片数目
+                /*
+                 lx,ly防止其因为图片不显示而跳过图片
+                 */
+                int lx = 0;
+                int ly = 0;
+                for (int x = 0; x < 6; x++)
                 {
-                    for (int y = 0; y < 5; y++)
+                    lx++;
+                    //int oy = random.Next(0, 6);
+                    for (int y = 0; y < 6; y++)
                     {
+                        int Mask = random.Next(0, 2);//判断这个图片显示与否,生成随机的图像
+                        if (l < len)
+                        {
+                            l++;
+                            if (Mask == 0)
+                            {
+                                continue;
+                            }
+                        }
+                        /*if (Mask == 0)
+                        {
+                            continue;
+                        }*/
                         Button but1 = new Button();
-                        but1.Location = new System.Drawing.Point(x: 50 + 50 * x + offsetX, y: 50 + 50 * y + offsetY);
+                        but1.Location = new System.Drawing.Point(x: 100 + 50 * x + offsetX, y: 100 + 50 * y + offsetY);
                         but1.Size = new System.Drawing.Size(width: 50, height: 50);
-                        but1.Image = pailist1[i * 6 + x * 6 + y].bitmap;
+                        but1.Image = pailist1[i * 36 + lx * 6 + ly].bitmap;
+                        but1.BackgroundImageLayout = ImageLayout.Zoom;
                         but1.TabIndex = i;
-                        but1.Text = Convert.ToString(i * 36 + x * 6 + y);
+                        but1.Text = Convert.ToString("");
                         this.Controls.Add(but1);
                         but1.Click += new EventHandler(Button_Click);
+                        ly++;
                     }
                 }
             }
 
             List<diepai2> list = new List<diepai2>();
-
-            int[] array2 = new int[3];
-            array2 = Enumerable.Range(0, 3)
+            int size = random.Next(20, 48);
+            int[] array2 = new int[size];
+            array2 = Enumerable.Range(0, size)
                         .OrderBy(n => (new Random(n).Next()))
                         .ToArray<int>();
             for (int i = 0; i < array2.Length / 3; i++)
@@ -217,7 +254,7 @@ namespace WindowsFormsApp1
             foreach (var item in pailist2)
             {
                 Button but2 = new Button();
-                but2.Location = new System.Drawing.Point(x: 50 + 5 * item.index, y: 370);
+                but2.Location = new System.Drawing.Point(x: 100 + (48 - size) * 2 + 5 * item.index, y: 430);
                 but2.Size = new System.Drawing.Size(width: 50, height: 50);
                 but2.Image = item.bitmap;
                 this.Controls.Add(but2);
@@ -226,10 +263,19 @@ namespace WindowsFormsApp1
             EnableButton();
         }
 
-        private void button1_Click(object sender, EventArgs e)
+
+        //结束游戏
+        private void btnEnd_Click(object sender, EventArgs e)
         {
-            //使用Application.Restart()方法
-            Application.Restart();
+            Application.Exit();
+        }
+
+        //刷新
+        private void btn_Refresh_Click(object sender, EventArgs e)
+        {
+            this.Controls.Clear();
+            InitializeComponent();
+            Form1_Load(sender, e);
         }
     }
     class diepai1
@@ -244,7 +290,6 @@ namespace WindowsFormsApp1
     }
 
 }
-
 
 
 
