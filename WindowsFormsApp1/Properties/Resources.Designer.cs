@@ -73,9 +73,39 @@ namespace WindowsFormsApp1.Properties {
         /// <summary>
         ///   查找 System.Drawing.Bitmap 类型的本地化资源。
         /// </summary>
+        internal static System.Drawing.Bitmap MAIN {
+            get {
+                object obj = ResourceManager.GetObject("MAIN", resourceCulture);
+                return ((System.Drawing.Bitmap)(obj));
+            }
+        }
+        
+        /// <summary>
+        ///   查找 System.Drawing.Bitmap 类型的本地化资源。
+        /// </summary>
         internal static System.Drawing.Bitmap QQ图片20230520163949 {
             get {
                 object obj = ResourceManager.GetObject("QQ图片20230520163949", resourceCulture);
+                return ((System.Drawing.Bitmap)(obj));
+            }
+        }
+        
+        /// <summary>
+        ///   查找 System.Drawing.Bitmap 类型的本地化资源。
+        /// </summary>
+        internal static System.Drawing.Bitmap 槽 {
+            get {
+                object obj = ResourceManager.GetObject("槽", resourceCulture);
+                return ((System.Drawing.Bitmap)(obj));
+            }
+        }
+        
+        /// <summary>
+        ///   查找 System.Drawing.Bitmap 类型的本地化资源。
+        /// </summary>
+        internal static System.Drawing.Bitmap 音乐 {
+            get {
+                object obj = ResourceManager.GetObject("音乐", resourceCulture);
                 return ((System.Drawing.Bitmap)(obj));
             }
         }
